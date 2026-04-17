@@ -8,23 +8,20 @@
     <script type="text/javascript" src="https://www.glowscript.org/package/glow.3.2.min.js"></script>
     <script type="text/javascript" src="https://www.glowscript.org/package/RSrun.3.2.min.js"></script>
 </head>
-<body>
+<body style="margin: 0; background-color: #ffffff;">
+
     <div id="glowscript" class="glowscript"></div>
 
 <script type="text/vp">
 GlowScript 3.2 VPython
 
 # ============================================================
-# Hollow Cube Tic-Tac-Toe - Professional Web Version
+# Hollow Cube Tic-Tac-Toe - Full Interactive Version
 # ============================================================
 
-EMPTY = 0
-RED = 1
-BLUE = 2
+EMPTY = 0; RED = 1; BLUE = 2
 
-PLAYER_NAME = {EMPTY: "Empty", RED: "Red", BLUE: "Blue"}
-
-# Aesthetic Pastel Palette
+PLAYER_NAME = {EMPTY: "Empty", RED: "Quartz", BLUE: "Aquamarine"}
 PLAYER_COLOR = {
     EMPTY: vector(0.97, 0.97, 1.0),
     RED:   vector(1.0, 0.75, 0.75),
@@ -37,28 +34,18 @@ GAP = 1.0
 CUBE_OPACITY = 0.7 
 
 def rounded_position(v):
-    # Use global round/int for browser compatibility
     return (int(round(v.x)), int(round(v.y)), int(round(v.z)))
 
 class HollowCubeGame:
     def __init__(self):
-        # Setup Canvas
-        self.scene = canvas(
-            width=850,
-            height=550,
-            background=vector(1.0, 1.0, 1.0),
-            userzoom=False 
-        )
-
+        self.scene = canvas(width=900, height=600, background=vector(1,1,1), userzoom=False)
         self.scene.center = vector(0, 0, 0)
         self.scene.forward = vector(-1.2, -1.0, -1.3)
-        self.scene.up = vector(0, 1, 0)
         self.scene.range = 4.2
 
         self.current_player = RED
         self.move_count = 0
         self.is_animating = False
-
         self.cubes = {}   
         self.state = {}   
 
@@ -66,9 +53,7 @@ class HollowCubeGame:
         self._build_ui()
         self._update_status("Ready")
 
-        # Stable bridge for click events
-        def click_bridge(evt):
-            self.on_click(evt)
+        def click_bridge(evt): self.on_click(evt)
         self.scene.bind("click", click_bridge)
 
     def _build_ui(self):
@@ -76,43 +61,34 @@ class HollowCubeGame:
         self.status_text = wtext(text="")
         self.scene.append_to_caption("\n\n")
 
-        # Y-Axis (Horizontal)
+        # UI Control Rows
         self.scene.append_to_caption("<b>↔ Horizontal Rotation (Y-Axis)</b>\n")
         self._create_row_controls("y", [["Top", 1], ["Middle", 0], ["Bottom", -1]], True)
 
-        # X-Axis (Vertical)
         self.scene.append_to_caption("\n<b>↕ Vertical Rotation (X-Axis)</b>\n")
         self._create_row_controls("x", [["Right", 1], ["Center", 0], ["Left", -1]], False)
 
-        # Z-Axis (Face)
         self.scene.append_to_caption("\n<b>🌀 Face Rotation (Z-Axis)</b>\n")
         self._create_row_controls("z", [["Front", 1], ["Middle", 0], ["Back", -1]], True)
 
         self.scene.append_to_caption("\n")
-        
-        def reset_bridge(b):
-            self.on_reset(b)
+        def reset_bridge(b): self.on_reset(b)
         button(text="RESET BOARD", bind=reset_bridge, background=vector(0.9, 0.9, 0.9))
 
     def _create_row_controls(self, axis, layers, flip):
         for data in layers:
-            label = data[0]
-            val = data[1]
+            label = data[0]; val = data[1]
             self.scene.append_to_caption(label + ":")
             d1, d2 = (-1, 1) if flip else (1, -1)
             wtext(text="   ")
             
-            # Use stable closures instead of lambdas for the browser
-            button(text=" ↺ ", bind=self.make_rot_func(axis, val, d1))
-            self.scene.append_to_caption(" ")
-            button(text=" ↻ ", bind=self.make_rot_func(axis, val, d2))
+            def make_cb(ax, lv, ds):
+                return lambda b: self.animate_rotation(ax, lv, ds)
+            
+            button(text=" ↺ ", bind=make_cb(axis, val, d1))
+            button(text=" ↻ ", bind=make_cb(axis, val, d2))
             self.scene.append_to_caption("   |   ")
         self.scene.append_to_caption("\n")
-
-    def make_rot_func(self, axis_name, layer_val, dir_sign):
-        def callback(b):
-            self.animate_rotation(axis_name, layer_val, dir_sign)
-        return callback
 
     def animate_rotation(self, axis_name, layer_val, direction_sign):
         if self.is_animating: return
@@ -125,14 +101,10 @@ class HollowCubeGame:
         elif axis_name == "z": idx = 2
         
         for p in self.cubes:
-            obj = self.cubes[p]
-            if p[idx] == layer_val:
-                affected.append(obj)
+            if p[idx] == layer_val: affected.append(self.cubes[p])
 
         total_angle = (pi / 2) * direction_sign
         rot_axis = vector(0,0,0)
-        
-        # Explicit axis assignment for browser stability
         if axis_name == "x": rot_axis.x = 1
         elif axis_name == "y": rot_axis.y = 1
         elif axis_name == "z": rot_axis.z = 1
@@ -152,44 +124,36 @@ class HollowCubeGame:
             for y in GRID_VALUES:
                 for z in GRID_VALUES:
                     if x == 0 and y == 0 and z == 0: continue
-                    pos = (x, y, z)
-                    b = box(pos=vector(x * GAP, y * GAP, z * GAP),
-                            size=vector(CUBE_SIZE, CUBE_SIZE, CUBE_SIZE),
-                            color=PLAYER_COLOR[EMPTY],
-                            opacity=CUBE_OPACITY,
-                            shininess=0.8)
-                    self.cubes[pos] = b
-                    self.state[pos] = EMPTY
+                    p = (x, y, z)
+                    b = box(pos=vector(x*GAP, y*GAP, z*GAP), size=vector(CUBE_SIZE, CUBE_SIZE, CUBE_SIZE),
+                            color=PLAYER_COLOR[EMPTY], opacity=CUBE_OPACITY, shininess=0.8)
+                    self.cubes[p] = b
+                    self.state[p] = EMPTY
 
     def on_click(self, evt):
         if self.is_animating: return
-        # Get pick from the event canvas
         picked = evt.canvas.mouse.pick
         if picked:
-            for pos in self.cubes:
-                obj = self.cubes[pos]
-                if picked == obj and self.state[pos] == EMPTY:
-                    self.state[pos] = self.current_player
-                    obj.color = PLAYER_COLOR[self.current_player]
+            for p in self.cubes:
+                if picked == self.cubes[p] and self.state[p] == EMPTY:
+                    self.state[p] = self.current_player
+                    picked.color = PLAYER_COLOR[self.current_player]
                     self._switch_turn()
                     return
 
     def _rebuild_mapping_from_objects(self):
-        new_cubes = {}
-        new_state = {}
-        for old_pos in self.cubes:
-            obj = self.cubes[old_pos]
-            # Adjust position rounding for GAP scaling
-            new_pos = rounded_position(obj.pos / GAP)
-            new_cubes[new_pos] = obj
-            new_state[new_pos] = self.state[old_pos]
+        new_cubes = {}; new_state = {}
+        for old_p in self.cubes:
+            obj = self.cubes[old_p]
+            new_p = rounded_position(obj.pos / GAP)
+            new_cubes[new_p] = obj
+            new_state[new_p] = self.state[old_p]
         self.cubes = new_cubes
         self.state = new_state
 
     def _update_status(self, extra=""):
         p_name = PLAYER_NAME[self.current_player]
-        # Use str() for concatenating in GlowScript
-        msg = "Move " + str(self.move_count + 1) + " | Current: " + p_name
+        msg = "Move " + str(self.move_count + 1) + " | Current Player: " + p_name
         if extra: msg += " | " + extra
         self.status_text.text = msg
 
@@ -200,21 +164,16 @@ class HollowCubeGame:
 
     def on_reset(self, b):
         if self.is_animating: return
-        for pos in self.cubes:
-            obj = self.cubes[pos]
-            obj.pos = vector(pos[0]*GAP, pos[1]*GAP, pos[2]*GAP)
-            obj.axis = vector(1,0,0)
-            obj.up = vector(0,1,0)
+        for p in self.cubes:
+            obj = self.cubes[p]
+            obj.pos = vector(p[0]*GAP, p[1]*GAP, p[2]*GAP)
+            obj.axis = vector(1,0,0); obj.up = vector(0,1,0)
             obj.color = PLAYER_COLOR[EMPTY]
-            self.state[pos] = EMPTY
-        self.current_player = RED
-        self.move_count = 0
+            self.state[p] = EMPTY
+        self.current_player = RED; self.move_count = 0
         self._update_status("Reset")
 
-# Initialize Game
 game = HollowCubeGame()
-
-# Main Loop
 while True:
     rate(60)
 </script>
